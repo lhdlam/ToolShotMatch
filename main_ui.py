@@ -9,7 +9,7 @@ from PyQt5.QtCore import QTimer, Qt
 from pynput.mouse import Controller, Listener
 from tool_image import Ui_MainWindow
 from PIL import Image
-from image_analyzer import ImageAnalyzer
+from image_analyzer import ImageAnalyzerv2
 from datetime import datetime
 from PyQt5.QtWidgets import QMessageBox
 
@@ -82,9 +82,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not os.path.exists(IMAGE_FOLDER):
             os.makedirs(IMAGE_FOLDER)
         image_path = os.path.join(IMAGE_FOLDER, image_name + os.path.splitext(file_name)[1])
-        
-        threading.Thread(target=self.save_image, args=(file_name, image_path)).start()
-        
+        self.save_image(file_name, image_path)
         label.setPixmap(QPixmap(image_path))
         self.save_image_path(image_name, image_path)
 
@@ -128,30 +126,48 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             print(f"File {screenshot_path} not found.")
     def crop_image(self, screenshot_path, cropped_image_path):
-        self.txt_show_result.setText("Đang phân tích...")
+        try:
+            self.txt_show_result.setText("Đang phân tích...")
+            with Image.open(screenshot_path) as img:
+                cropped_img = img.crop((0, 0, 10, 10))
+                cropped_img.save(cropped_image_path)
+                
+            analyzer = ImageAnalyzerv2(min_similarity=0.5, image_ref1='images/blue_cursor.png', image_ref2='images/red_cursor.png')
 
-        analyzer = ImageAnalyzer()
+            result_image = analyzer.booling_cursor(image_path=cropped_image_path, margin_size = 0)
+            print("result_image", result_image)
+            if result_image == 0:
+                screenshot_path = "images/red_compare.png"
+            elif result_image == 1:
+                screenshot_path = "images/blue_compare.png"
+            else:
+                self.txt_show_result.setText("Không khớp")
+            self.mouse_label_2.setPixmap(QPixmap(screenshot_path))
 
-        result_image = analyzer.booling_cursor(image_path=screenshot_path, margin_size=5)
-        print("result_image", result_image)
-        if result_image == 0:
-            screenshot_path = "images/red_compare.png"
-        else:
-            screenshot_path = "images/blue_compare.png"
+            image_ref1 = "images/input1.png"
+            image_ref2 = "images/input2.png"
 
-        self.mouse_label_2.setPixmap(QPixmap(screenshot_path))
+            analyzer = ImageAnalyzerv2(
+                image_ref1=image_ref1,
+                image_ref2=image_ref2,
+            )
 
-        image_ref1 = "images/input1.png"
-        image_ref2 = "images/input2.png"
+            color_name, similarity = analyzer.process(screenshot_path)
 
-        analyzer = ImageAnalyzer(
-            image_ref1=image_ref1,
-            image_ref2=image_ref2,
-        )
+            self.txt_show_result.setText(f"{str(similarity)} - {color_name}")
+        
+        except FileNotFoundError as e:
+            print(f"Lỗi: Không tìm thấy tệp tin - {e}")
+            self.txt_show_result.setText("Lỗi: Tệp tin không tồn tại.")
+        
+        except AttributeError as e:
+            print(f"Lỗi: Lỗi thuộc tính - {e}")
+            self.txt_show_result.setText("Không khớp")
 
-        color_name, similarity = analyzer.process(screenshot_path)
+        except Exception as e:
+            print(f"Lỗi không xác định: {e}")
+            self.txt_show_result.setText("Không khớp")
 
-        self.txt_show_result.setText(f"{str(similarity)} - {color_name}")
 
     def track_mouse(self):
         mouse_pos = self.mouse_controller.position
@@ -159,14 +175,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         region_size = 20
         half_region = region_size // 2
 
-        left_x = mouse_pos[0] - half_region // 2
-        top_y = mouse_pos[1] - half_region // 2
+        left_x = int(mouse_pos[0] - half_region // 2)
+        top_y = int(mouse_pos[1] - half_region // 2)
 
         screenshot = pyautogui.screenshot(region=(left_x, top_y, region_size, region_size))
         screenshot.save("mouse_screenshot.png")
 
         pixmap = QPixmap("mouse_screenshot.png")
         self.mouse_label.setPixmap(pixmap)
+
 
     def on_click(self, x, y, button, pressed):
         if pressed:
