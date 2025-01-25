@@ -61,7 +61,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.mouse_label.setPixmap(QPixmap(self.mouse_image_path))
 
     def check_expiry_date(self):
-        expiry_date = datetime(2025, 2, 3)
+        expiry_date = datetime(2025, 1, 28)
         current_date = datetime.now()
 
         if current_date > expiry_date:
