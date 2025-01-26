@@ -12,6 +12,7 @@ from PIL import Image
 from image_analyzer import ImageAnalyzerv2
 from datetime import datetime
 from PyQt5.QtWidgets import QMessageBox
+import time
 
 CONFIG_FILE = "image_config.json"
 IMAGE_FOLDER = "images"
@@ -138,10 +139,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("result_image", result_image)
             if result_image == 0:
                 screenshot_path = "images/red_compare.png"
+                folder_name = f"images_red"
             elif result_image == 1:
                 screenshot_path = "images/blue_compare.png"
+                folder_name = f"images_blue"
             else:
                 self.txt_show_result.setText("Không khớp")
+                return
+            if not os.path.exists(folder_name):
+                os.makedirs(folder_name)
+
+            new_file_name = f"{folder_name}/red_{int(time.time())}.png" if result_image == 0 else f"{folder_name}/blue_{int(time.time())}.png"
+
+            with Image.open(screenshot_path) as img:
+                img.save(new_file_name)
+
+            
             self.mouse_label_2.setPixmap(QPixmap(screenshot_path))
 
             image_ref1 = "images/input1.png"
